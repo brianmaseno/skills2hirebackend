@@ -63,7 +63,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         db_table = 'users'
         verbose_name = 'User'
         verbose_name_plural = 'Users'
-        ordering = ['-created_at']
+        # Note: Removed ordering due to djongo/MongoDB limitations with ORDER BY
     
     def __str__(self):
         return self.email
@@ -97,7 +97,7 @@ class EmailVerificationToken(models.Model):
     
     class Meta:
         db_table = 'email_verification_tokens'
-        ordering = ['-created_at']
+        # Note: Removed ordering due to djongo/MongoDB limitations with ORDER BY
     
     def __str__(self):
         return f"Token for {self.user.email}"
@@ -118,7 +118,7 @@ class PasswordResetToken(models.Model):
     
     class Meta:
         db_table = 'password_reset_tokens'
-        ordering = ['-created_at']
+        # Note: Removed ordering due to djongo/MongoDB limitations with ORDER BY
     
     def __str__(self):
         return f"Password reset for {self.user.email}"

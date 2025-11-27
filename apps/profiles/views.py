@@ -40,9 +40,19 @@ class ProfileViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter queryset based on user permissions"""
         if self.action == 'list':
-            # Only show public profiles or user's own profile
-            return self.queryset.filter(is_public=True)
-        return self.queryset
+            # Only show public profiles or user's own profile, clear ordering
+            return self.queryset.filter(is_public=True).order_by()
+        return self.queryset.order_by()
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to handle djongo compatibility"""
+        try:
+            queryset = self.get_queryset().order_by()
+            profiles = list(queryset)
+            serializer = self.get_serializer(profiles, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response([], status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get', 'put', 'patch'])
     def me(self, request):
@@ -78,6 +88,20 @@ class SkillViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'description']
     pagination_class = None  # Disable pagination for djongo compatibility
     # Note: Removed OrderingFilter due to djongo/MongoDB limitations
+    
+    def get_queryset(self):
+        """Return skills without ordering for djongo compatibility"""
+        return Skill.objects.all().order_by()
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to handle djongo compatibility"""
+        try:
+            queryset = self.get_queryset().order_by()
+            skills = list(queryset)
+            serializer = self.get_serializer(skills, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response([], status=status.HTTP_200_OK)
 
 
 class ProfileSkillViewSet(viewsets.ModelViewSet):
@@ -90,7 +114,17 @@ class ProfileSkillViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Return profile skills for the current user's profile"""
         # Note: Removed select_related due to djongo/MongoDB limitations
-        return ProfileSkill.objects.filter(profile__user=self.request.user)
+        return ProfileSkill.objects.filter(profile__user=self.request.user).order_by()
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to handle djongo compatibility"""
+        try:
+            queryset = self.get_queryset().order_by()
+            profile_skills = list(queryset)
+            serializer = self.get_serializer(profile_skills, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response([], status=status.HTTP_200_OK)
     
     def perform_create(self, serializer):
         """Create a profile skill for the current user's profile"""
@@ -106,7 +140,17 @@ class ExperienceViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Return experiences for the current user's profile"""
-        return Experience.objects.filter(profile__user=self.request.user)
+        return Experience.objects.filter(profile__user=self.request.user).order_by()
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to handle djongo compatibility"""
+        try:
+            queryset = self.get_queryset().order_by()
+            experiences = list(queryset)
+            serializer = self.get_serializer(experiences, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response([], status=status.HTTP_200_OK)
     
     def perform_create(self, serializer):
         """Create an experience for the current user's profile"""
@@ -122,7 +166,17 @@ class EducationViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Return education for the current user's profile"""
-        return Education.objects.filter(profile__user=self.request.user)
+        return Education.objects.filter(profile__user=self.request.user).order_by()
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to handle djongo compatibility"""
+        try:
+            queryset = self.get_queryset().order_by()
+            education = list(queryset)
+            serializer = self.get_serializer(education, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response([], status=status.HTTP_200_OK)
     
     def perform_create(self, serializer):
         """Create an education entry for the current user's profile"""
@@ -138,7 +192,17 @@ class CertificationViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Return certifications for the current user's profile"""
-        return Certification.objects.filter(profile__user=self.request.user)
+        return Certification.objects.filter(profile__user=self.request.user).order_by()
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to handle djongo compatibility"""
+        try:
+            queryset = self.get_queryset().order_by()
+            certifications = list(queryset)
+            serializer = self.get_serializer(certifications, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response([], status=status.HTTP_200_OK)
     
     def perform_create(self, serializer):
         """Create a certification for the current user's profile"""

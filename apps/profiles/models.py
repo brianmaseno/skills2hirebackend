@@ -17,7 +17,7 @@ class Skill(models.Model):
     
     class Meta:
         db_table = 'skills'
-        ordering = ['name']
+        # Note: Removed ordering due to djongo/MongoDB limitations with ORDER BY
     
     def __str__(self):
         return self.name
@@ -63,7 +63,7 @@ class Profile(models.Model):
     
     class Meta:
         db_table = 'profiles'
-        ordering = ['-created_at']
+        # Note: Removed ordering due to djongo/MongoDB limitations with ORDER BY
     
     def __str__(self):
         return f"{self.display_name} ({self.user.email})"
@@ -89,7 +89,7 @@ class ProfileSkill(models.Model):
     class Meta:
         db_table = 'profile_skills'
         unique_together = ['profile', 'skill']
-        ordering = ['-years_experience', 'skill__name']
+        # Note: Removed ordering due to djongo/MongoDB limitations with ORDER BY
     
     def __str__(self):
         return f"{self.profile.display_name} - {self.skill.name} ({self.level})"
@@ -119,7 +119,7 @@ class Experience(models.Model):
     
     class Meta:
         db_table = 'experiences'
-        ordering = ['-start_date']
+        # Note: Removed ordering due to djongo/MongoDB limitations with ORDER BY
     
     def __str__(self):
         return f"{self.job_title} at {self.company_name}"
@@ -151,7 +151,7 @@ class Education(models.Model):
     
     class Meta:
         db_table = 'education'
-        ordering = ['-start_date']
+        # Note: Removed ordering due to djongo/MongoDB limitations with ORDER BY
     
     def __str__(self):
         return f"{self.degree} in {self.field_of_study} from {self.institution}"
@@ -172,7 +172,7 @@ class Certification(models.Model):
     
     class Meta:
         db_table = 'certifications'
-        ordering = ['-issue_date']
+        # Note: Removed ordering due to djongo/MongoDB limitations with ORDER BY
     
     def __str__(self):
         return f"{self.name} - {self.issuing_organization}"

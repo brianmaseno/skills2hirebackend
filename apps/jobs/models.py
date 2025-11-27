@@ -69,7 +69,7 @@ class Job(models.Model):
     
     class Meta:
         db_table = 'jobs'
-        ordering = ['-created_at']
+        # Note: Removed ordering due to djongo/MongoDB limitations with ORDER BY
         indexes = [
             models.Index(fields=['status', '-created_at']),
             models.Index(fields=['employer', 'status']),
@@ -127,7 +127,7 @@ class Application(models.Model):
     
     class Meta:
         db_table = 'applications'
-        ordering = ['-applied_at']
+        # Note: Removed ordering due to djongo/MongoDB limitations with ORDER BY
         unique_together = ['job', 'applicant']
         indexes = [
             models.Index(fields=['job', 'status']),
@@ -152,7 +152,7 @@ class SavedJob(models.Model):
     class Meta:
         db_table = 'saved_jobs'
         unique_together = ['user', 'job']
-        ordering = ['-saved_at']
+        # Note: Removed ordering due to djongo/MongoDB limitations with ORDER BY
     
     def __str__(self):
         return f"{self.user.email} saved {self.job.title}"

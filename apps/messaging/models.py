@@ -22,7 +22,7 @@ class Conversation(models.Model):
     
     class Meta:
         db_table = 'conversations'
-        ordering = ['-updated_at']
+        # Note: Removed ordering due to djongo/MongoDB limitations with ORDER BY
     
     def __str__(self):
         participant_emails = ', '.join([p.email for p in self.participants.all()[:2]])
@@ -48,7 +48,7 @@ class Message(models.Model):
     
     class Meta:
         db_table = 'messages'
-        ordering = ['created_at']
+        # Note: Removed ordering due to djongo/MongoDB limitations with ORDER BY
         indexes = [
             models.Index(fields=['conversation', '-created_at']),
         ]

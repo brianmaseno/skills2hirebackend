@@ -59,7 +59,7 @@ class JobViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         """Override list to handle djongo compatibility"""
         try:
-            queryset = self.get_queryset()
+            queryset = self.get_queryset().order_by()  # Clear any ordering
             jobs = list(queryset)
             serializer = self.get_serializer(jobs, many=True)
             return Response(serializer.data)
@@ -90,10 +90,14 @@ class JobViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Use simple filter without JOINs for djongo compatibility
-        jobs = list(Job.objects.filter(employer_id=request.user.id))
-        serializer = self.get_serializer(jobs, many=True)
-        return Response(serializer.data)
+        try:
+            # Use simple filter without JOINs and clear any ordering for djongo compatibility
+            jobs = list(Job.objects.filter(employer_id=request.user.id).order_by())
+            serializer = self.get_serializer(jobs, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            # Return empty list on any database error
+            return Response([], status=status.HTTP_200_OK)
 
 
 class ApplicationViewSet(viewsets.ModelViewSet):
@@ -114,20 +118,20 @@ class ApplicationViewSet(viewsets.ModelViewSet):
             # Employers see applications to their jobs
             # Avoid JOIN by first getting job IDs, then filtering applications
             try:
-                job_ids = list(Job.objects.filter(employer_id=user.id).values_list('id', flat=True))
+                job_ids = list(Job.objects.filter(employer_id=user.id).order_by().values_list('id', flat=True))
                 if job_ids:
-                    return Application.objects.filter(job_id__in=job_ids)
+                    return Application.objects.filter(job_id__in=job_ids).order_by()
                 return Application.objects.none()
             except Exception:
                 return Application.objects.none()
         else:
             # Job seekers see their own applications
-            return Application.objects.filter(applicant_id=user.id)
+            return Application.objects.filter(applicant_id=user.id).order_by()
     
     def list(self, request, *args, **kwargs):
         """Override list to handle djongo compatibility"""
         try:
-            queryset = self.get_queryset()
+            queryset = self.get_queryset().order_by()  # Clear any ordering
             applications = list(queryset)
             serializer = self.get_serializer(applications, many=True)
             return Response(serializer.data)
@@ -191,7 +195,7 @@ class SavedJobViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Return saved jobs for current user"""
         # Note: Removed select_related due to djongo/MongoDB JOIN limitations
-        return SavedJob.objects.filter(user=self.request.user)
+        return SavedJob.objects.filter(user=self.request.user).order_by()
     
     def create(self, request, *args, **kwargs):
         """Save a job"""

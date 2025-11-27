@@ -17,7 +17,7 @@ class SkillSerializer(serializers.ModelSerializer):
 class ProfileSkillSerializer(serializers.ModelSerializer):
     """Serializer for ProfileSkill model"""
     
-    skill = SkillSerializer(read_only=True)
+    skill = serializers.SerializerMethodField()
     skill_id = serializers.PrimaryKeyRelatedField(
         queryset=Skill.objects.all(),
         source='skill',
@@ -27,6 +27,16 @@ class ProfileSkillSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProfileSkill
         fields = ('id', 'skill', 'skill_id', 'level', 'years_experience', 'is_verified')
+    
+    def get_skill(self, obj):
+        """Get skill data with djongo-compatible query"""
+        try:
+            if obj.skill_id:
+                skill = Skill.objects.get(id=obj.skill_id)
+                return SkillSerializer(skill).data
+            return None
+        except Exception:
+            return None
 
 
 class ExperienceSerializer(serializers.ModelSerializer):
@@ -67,10 +77,10 @@ class ProfileSerializer(serializers.ModelSerializer):
     
     user_email = serializers.EmailField(source='user.email', read_only=True)
     user_type = serializers.CharField(source='user.user_type', read_only=True)
-    skills = ProfileSkillSerializer(source='profileskill_set', many=True, read_only=True)
-    experiences = ExperienceSerializer(many=True, read_only=True)
-    education = EducationSerializer(many=True, read_only=True)
-    certifications = CertificationSerializer(many=True, read_only=True)
+    skills = serializers.SerializerMethodField()
+    experiences = serializers.SerializerMethodField()
+    education = serializers.SerializerMethodField()
+    certifications = serializers.SerializerMethodField()
     
     class Meta:
         model = Profile
@@ -82,6 +92,38 @@ class ProfileSerializer(serializers.ModelSerializer):
             'is_public', 'is_available', 'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
+    
+    def get_skills(self, obj):
+        """Get skills with djongo-compatible query"""
+        try:
+            profile_skills = list(ProfileSkill.objects.filter(profile_id=obj.id))
+            return ProfileSkillSerializer(profile_skills, many=True).data
+        except Exception:
+            return []
+    
+    def get_experiences(self, obj):
+        """Get experiences with djongo-compatible query"""
+        try:
+            experiences = list(Experience.objects.filter(profile_id=obj.id))
+            return ExperienceSerializer(experiences, many=True).data
+        except Exception:
+            return []
+    
+    def get_education(self, obj):
+        """Get education with djongo-compatible query"""
+        try:
+            education = list(Education.objects.filter(profile_id=obj.id))
+            return EducationSerializer(education, many=True).data
+        except Exception:
+            return []
+    
+    def get_certifications(self, obj):
+        """Get certifications with djongo-compatible query"""
+        try:
+            certifications = list(Certification.objects.filter(profile_id=obj.id))
+            return CertificationSerializer(certifications, many=True).data
+        except Exception:
+            return []
 
 
 class ProfileCreateUpdateSerializer(serializers.ModelSerializer):

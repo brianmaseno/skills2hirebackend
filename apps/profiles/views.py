@@ -22,14 +22,13 @@ from .serializers import (
 class ProfileViewSet(viewsets.ModelViewSet):
     """ViewSet for Profile model"""
     
-    queryset = Profile.objects.select_related('user').prefetch_related(
-        'profileskill_set__skill', 'experiences', 'education', 'certifications'
-    )
+    # Note: Removed select_related and prefetch_related due to djongo/MongoDB limitations
+    queryset = Profile.objects.all()
     permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['location', 'is_available', 'user__user_type']
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['location', 'is_available']
     search_fields = ['display_name', 'bio', 'headline', 'company_name']
-    ordering_fields = ['created_at', 'updated_at']
+    # Note: Removed OrderingFilter due to djongo/MongoDB limitations
     
     def get_serializer_class(self):
         """Use different serializers for different actions"""
@@ -73,10 +72,10 @@ class SkillViewSet(viewsets.ModelViewSet):
     queryset = Skill.objects.all()
     serializer_class = SkillSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['category']
     search_fields = ['name', 'description']
-    ordering_fields = ['name', 'created_at']
+    # Note: Removed OrderingFilter due to djongo/MongoDB limitations
 
 
 class ProfileSkillViewSet(viewsets.ModelViewSet):
@@ -87,9 +86,8 @@ class ProfileSkillViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Return profile skills for the current user's profile"""
-        return ProfileSkill.objects.filter(
-            profile__user=self.request.user
-        ).select_related('skill', 'profile')
+        # Note: Removed select_related due to djongo/MongoDB limitations
+        return ProfileSkill.objects.filter(profile__user=self.request.user)
     
     def perform_create(self, serializer):
         """Create a profile skill for the current user's profile"""

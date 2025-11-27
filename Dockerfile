@@ -19,6 +19,11 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
+# Install djongo separately with --no-deps to avoid sqlparse version conflict
+# djongo requires sqlparse==0.2.4 but Django requires sqlparse>=0.3.1
+# Using --no-deps and relying on Django's sqlparse works in practice
+RUN pip install djongo==1.3.6 --no-deps
+
 # Copy project
 COPY . .
 

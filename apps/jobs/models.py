@@ -59,7 +59,7 @@ class Job(models.Model):
     
     skills_required = models.ManyToManyField(Skill, through='JobSkill', related_name='jobs')
     
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active', db_index=True)
     views_count = models.IntegerField(default=0)
     applications_count = models.IntegerField(default=0)
     

@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q, F
+from django.db.models import Q
 
 from .models import Job, Application, SavedJob
 from .serializers import (
@@ -44,12 +44,14 @@ class JobViewSet(viewsets.ModelViewSet):
         queryset = self.queryset
         
         if self.action == 'list':
-            # Show only active jobs to public
-            if not self.request.user.is_authenticated or not self.request.user.is_employer:
-                queryset = queryset.filter(status='active')
-            else:
-                # Employers see their own jobs in all statuses
+            # For any user (authenticated or not), show active jobs
+            # Employers additionally see their own jobs in all statuses
+            if self.request.user.is_authenticated and hasattr(self.request.user, 'is_employer') and self.request.user.is_employer:
+                # Employers see their own jobs (any status) + all active jobs
                 queryset = queryset.filter(Q(employer=self.request.user) | Q(status='active'))
+            else:
+                # Everyone else sees only active jobs
+                queryset = queryset.filter(status='active')
         
         # Filter by skills if provided
         skills = self.request.query_params.getlist('skills')
@@ -68,9 +70,9 @@ class JobViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         """Increment view count on retrieve"""
         instance = self.get_object()
-        instance.views_count = F('views_count') + 1
+        # Use direct increment instead of F() expression (djongo/MongoDB doesn't support F() in updates)
+        instance.views_count = (instance.views_count or 0) + 1
         instance.save(update_fields=['views_count'])
-        instance.refresh_from_db()
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
     
@@ -133,9 +135,9 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         """Create application and update job applications count"""
         application = serializer.save(applicant=self.request.user)
         
-        # Update applications count
+        # Update applications count (use direct increment for djongo/MongoDB compatibility)
         job = application.job
-        job.applications_count = F('applications_count') + 1
+        job.applications_count = (job.applications_count or 0) + 1
         job.save(update_fields=['applications_count'])
         
         # Calculate match score using matching algorithm

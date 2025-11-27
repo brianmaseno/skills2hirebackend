@@ -70,14 +70,22 @@ class JobSerializer(serializers.ModelSerializer):
         """Check if the current user has saved this job"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            return SavedJob.objects.filter(user=request.user, job=obj).exists()
+            try:
+                # Use count() > 0 instead of exists() for djongo compatibility
+                return SavedJob.objects.filter(user=request.user, job_id=obj.id).count() > 0
+            except Exception:
+                return False
         return False
     
     def get_has_applied(self, obj):
         """Check if the current user has applied to this job"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            return Application.objects.filter(applicant=request.user, job=obj).exists()
+            try:
+                # Use count() > 0 instead of exists() for djongo compatibility
+                return Application.objects.filter(applicant=request.user, job_id=obj.id).count() > 0
+            except Exception:
+                return False
         return False
 
 
@@ -178,7 +186,8 @@ class ApplicationCreateSerializer(serializers.ModelSerializer):
         job = attrs.get('job')
         user = self.context['request'].user
         
-        if Application.objects.filter(job=job, applicant=user).exists():
+        # Use count() > 0 instead of exists() for djongo compatibility
+        if Application.objects.filter(job_id=job.id, applicant=user).count() > 0:
             raise serializers.ValidationError("You have already applied to this job.")
         
         if job.status != 'active':

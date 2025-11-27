@@ -21,11 +21,13 @@ from .serializers import (
 class JobViewSet(viewsets.ModelViewSet):
     """ViewSet for Job model"""
     
-    queryset = Job.objects.select_related('employer__profile').prefetch_related('jobskill_set__skill')
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    # Note: Removed select_related and prefetch_related due to djongo/MongoDB limitations
+    # djongo doesn't handle JOINs with ORDER BY properly
+    queryset = Job.objects.all()
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['employment_type', 'experience_level', 'is_remote', 'status']
     search_fields = ['title', 'description', 'location']
-    ordering_fields = ['created_at', 'salary_min', 'applications_count', 'views_count']
+    # Note: Removed OrderingFilter due to djongo limitations with ORDER BY + JOINs
     
     def get_serializer_class(self):
         """Use different serializers for different actions"""
@@ -106,9 +108,9 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     
     serializer_class = ApplicationSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend]
     filterset_fields = ['status', 'job']
-    ordering_fields = ['applied_at', 'match_score']
+    # Note: Removed OrderingFilter due to djongo/MongoDB limitations
     
     def get_queryset(self):
         """Return applications based on user type"""
@@ -116,14 +118,11 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         
         if user.is_employer:
             # Employers see applications to their jobs
-            return Application.objects.filter(
-                job__employer=user
-            ).select_related('job', 'applicant__profile')
+            # Note: Removed select_related due to djongo/MongoDB JOIN limitations
+            return Application.objects.filter(job__employer=user)
         else:
             # Job seekers see their own applications
-            return Application.objects.filter(
-                applicant=user
-            ).select_related('job__employer__profile')
+            return Application.objects.filter(applicant=user)
     
     def get_serializer_class(self):
         """Use different serializers for different actions"""
@@ -180,9 +179,8 @@ class SavedJobViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Return saved jobs for current user"""
-        return SavedJob.objects.filter(
-            user=self.request.user
-        ).select_related('job__employer__profile')
+        # Note: Removed select_related due to djongo/MongoDB JOIN limitations
+        return SavedJob.objects.filter(user=self.request.user)
     
     def create(self, request, *args, **kwargs):
         """Save a job"""

@@ -3,7 +3,6 @@ Skill-based matching services for SkillMatchHub
 """
 import math
 from typing import Dict, List, Tuple
-from django.db.models import Prefetch
 from apps.jobs.models import Job, JobSkill
 from apps.profiles.models import Profile, ProfileSkill
 
@@ -50,66 +49,77 @@ def calculate_match_score(job: Job, profile: Profile) -> float:
     Returns:
         Float between 0 and 1 representing match percentage
     """
-    # Get job required skills with importance weights
-    job_skills = job.jobskill_set.select_related('skill').all()
-    
-    if not job_skills:
-        return 0.0
-    
-    # Build dictionary of job requirements: {skill_name: (importance, is_required)}
-    job_requirements: Dict[str, Tuple[float, bool]] = {}
-    total_importance = 0.0
-    
-    for js in job_skills:
-        skill_name = js.skill.name.lower()
-        job_requirements[skill_name] = (js.importance, js.is_required)
-        total_importance += js.importance
-    
-    if total_importance == 0:
-        return 0.0
-    
-    # Get candidate skills
-    candidate_skills = profile.profileskill_set.select_related('skill').all()
-    
-    # Build dictionary of candidate skills: {skill_name: skill_value}
-    candidate_skill_values: Dict[str, float] = {}
-    
-    for ps in candidate_skills:
-        skill_name = ps.skill.name.lower()
-        skill_value = calculate_skill_value(ps.level, ps.years_experience)
-        candidate_skill_values[skill_name] = skill_value
-    
-    # Calculate weighted match score
-    matched_importance = 0.0
-    required_skills_met = 0
-    total_required_skills = sum(1 for _, (_, is_req) in job_requirements.items() if is_req)
-    
-    for skill_name, (importance, is_required) in job_requirements.items():
-        if skill_name in candidate_skill_values:
-            # Candidate has this skill
-            candidate_value = candidate_skill_values[skill_name]
-            
-            # Normalize candidate value (assuming max realistic value is 2.5)
-            normalized_value = min(candidate_value / 2.5, 1.0)
-            
-            # Add weighted contribution
-            matched_importance += importance * normalized_value
-            
-            if is_required:
-                required_skills_met += 1
-    
-    # Calculate base match score
-    base_score = matched_importance / total_importance if total_importance > 0 else 0
-    
-    # Apply penalty if required skills are missing
-    if total_required_skills > 0:
-        required_ratio = required_skills_met / total_required_skills
+    try:
+        # Get job required skills with importance weights
+        # Note: Removed select_related due to djongo/MongoDB limitations
+        job_skills = list(job.jobskill_set.all().order_by())
         
-        # Strong penalty for missing required skills
-        if required_ratio < 1.0:
-            base_score *= (0.5 + 0.5 * required_ratio)  # Max 50% penalty
-    
-    return round(base_score, 3)
+        if not job_skills:
+            return 0.0
+        
+        # Build dictionary of job requirements: {skill_name: (importance, is_required)}
+        job_requirements: Dict[str, Tuple[float, bool]] = {}
+        total_importance = 0.0
+        
+        for js in job_skills:
+            try:
+                skill_name = js.skill.name.lower()
+                job_requirements[skill_name] = (js.importance, js.is_required)
+                total_importance += js.importance
+            except Exception:
+                continue
+        
+        if total_importance == 0:
+            return 0.0
+        
+        # Get candidate skills
+        # Note: Removed select_related due to djongo/MongoDB limitations
+        candidate_skills = list(profile.profileskill_set.all().order_by())
+        
+        # Build dictionary of candidate skills: {skill_name: skill_value}
+        candidate_skill_values: Dict[str, float] = {}
+        
+        for ps in candidate_skills:
+            try:
+                skill_name = ps.skill.name.lower()
+                skill_value = calculate_skill_value(ps.level, ps.years_experience)
+                candidate_skill_values[skill_name] = skill_value
+            except Exception:
+                continue
+        
+        # Calculate weighted match score
+        matched_importance = 0.0
+        required_skills_met = 0
+        total_required_skills = sum(1 for _, (_, is_req) in job_requirements.items() if is_req)
+        
+        for skill_name, (importance, is_required) in job_requirements.items():
+            if skill_name in candidate_skill_values:
+                # Candidate has this skill
+                candidate_value = candidate_skill_values[skill_name]
+                
+                # Normalize candidate value (assuming max realistic value is 2.5)
+                normalized_value = min(candidate_value / 2.5, 1.0)
+                
+                # Add weighted contribution
+                matched_importance += importance * normalized_value
+                
+                if is_required:
+                    required_skills_met += 1
+        
+        # Calculate base match score
+        base_score = matched_importance / total_importance if total_importance > 0 else 0
+        
+        # Apply penalty if required skills are missing
+        if total_required_skills > 0:
+            required_ratio = required_skills_met / total_required_skills
+            
+            # Strong penalty for missing required skills
+            if required_ratio < 1.0:
+                base_score *= (0.5 + 0.5 * required_ratio)  # Max 50% penalty
+        
+        return round(base_score, 3)
+    except Exception:
+        return 0.0
 
 
 def find_matching_candidates(job: Job, limit: int = 50, min_score: float = 0.3) -> List[Tuple[Profile, float]]:
@@ -124,26 +134,28 @@ def find_matching_candidates(job: Job, limit: int = 50, min_score: float = 0.3) 
     Returns:
         List of tuples (Profile, score) sorted by score descending
     """
-    # Get all job seeker profiles that are available and public
-    profiles = Profile.objects.filter(
-        user__user_type='job_seeker',
-        is_public=True,
-        is_available=True
-    ).select_related('user').prefetch_related(
-        Prefetch('profileskill_set', queryset=ProfileSkill.objects.select_related('skill'))
-    )
-    
-    # Calculate match scores
-    matches = []
-    for profile in profiles:
-        score = calculate_match_score(job, profile)
-        if score >= min_score:
-            matches.append((profile, score))
-    
-    # Sort by score descending
-    matches.sort(key=lambda x: x[1], reverse=True)
-    
-    return matches[:limit]
+    try:
+        # Get all job seeker profiles that are available and public
+        # Note: Removed select_related and prefetch_related due to djongo/MongoDB limitations
+        profiles = list(Profile.objects.filter(
+            user__user_type='job_seeker',
+            is_public=True,
+            is_available=True
+        ).order_by())
+        
+        # Calculate match scores
+        matches = []
+        for profile in profiles:
+            score = calculate_match_score(job, profile)
+            if score >= min_score:
+                matches.append((profile, score))
+        
+        # Sort by score descending
+        matches.sort(key=lambda x: x[1], reverse=True)
+        
+        return matches[:limit]
+    except Exception:
+        return []
 
 
 def find_matching_jobs(profile: Profile, limit: int = 50, min_score: float = 0.3) -> List[Tuple[Job, float]]:
@@ -158,24 +170,26 @@ def find_matching_jobs(profile: Profile, limit: int = 50, min_score: float = 0.3
     Returns:
         List of tuples (Job, score) sorted by score descending
     """
-    # Get all active jobs
-    jobs = Job.objects.filter(
-        status='active'
-    ).select_related('employer').prefetch_related(
-        Prefetch('jobskill_set', queryset=JobSkill.objects.select_related('skill'))
-    )
-    
-    # Calculate match scores
-    matches = []
-    for job in jobs:
-        score = calculate_match_score(job, profile)
-        if score >= min_score:
-            matches.append((job, score))
-    
-    # Sort by score descending
-    matches.sort(key=lambda x: x[1], reverse=True)
-    
-    return matches[:limit]
+    try:
+        # Get all active jobs
+        # Note: Removed select_related and prefetch_related due to djongo/MongoDB limitations
+        jobs = list(Job.objects.filter(
+            status='active'
+        ).order_by())
+        
+        # Calculate match scores
+        matches = []
+        for job in jobs:
+            score = calculate_match_score(job, profile)
+            if score >= min_score:
+                matches.append((job, score))
+        
+        # Sort by score descending
+        matches.sort(key=lambda x: x[1], reverse=True)
+        
+        return matches[:limit]
+    except Exception:
+        return []
 
 
 def get_skill_gap_analysis(job: Job, profile: Profile) -> Dict:
@@ -189,46 +203,62 @@ def get_skill_gap_analysis(job: Job, profile: Profile) -> Dict:
     Returns:
         Dictionary with matched skills, missing skills, and recommendations
     """
-    job_skills = job.jobskill_set.select_related('skill').all()
-    candidate_skills_dict = {
-        ps.skill.name.lower(): ps
-        for ps in profile.profileskill_set.select_related('skill').all()
-    }
-    
-    matched_skills = []
-    missing_skills = []
-    improvement_areas = []
-    
-    for js in job_skills:
-        skill_name = js.skill.name.lower()
+    try:
+        # Note: Removed select_related due to djongo/MongoDB limitations
+        job_skills = list(job.jobskill_set.all().order_by())
+        profile_skills = list(profile.profileskill_set.all().order_by())
         
-        if skill_name in candidate_skills_dict:
-            ps = candidate_skills_dict[skill_name]
-            matched_skills.append({
-                'skill': js.skill.name,
-                'required_importance': js.importance,
-                'is_required': js.is_required,
-                'candidate_level': ps.level,
-                'candidate_experience': ps.years_experience,
-            })
-            
-            # Suggest improvement if below advanced level for important skills
-            if js.importance >= 0.8 and ps.level in ['beginner', 'intermediate']:
-                improvement_areas.append({
-                    'skill': js.skill.name,
-                    'current_level': ps.level,
-                    'suggested_level': 'advanced',
-                })
-        else:
-            missing_skills.append({
-                'skill': js.skill.name,
-                'importance': js.importance,
-                'is_required': js.is_required,
-            })
-    
-    return {
-        'matched_skills': matched_skills,
-        'missing_skills': missing_skills,
-        'improvement_areas': improvement_areas,
-        'match_score': calculate_match_score(job, profile),
-    }
+        candidate_skills_dict = {}
+        for ps in profile_skills:
+            try:
+                candidate_skills_dict[ps.skill.name.lower()] = ps
+            except Exception:
+                continue
+        
+        matched_skills = []
+        missing_skills = []
+        improvement_areas = []
+        
+        for js in job_skills:
+            try:
+                skill_name = js.skill.name.lower()
+                
+                if skill_name in candidate_skills_dict:
+                    ps = candidate_skills_dict[skill_name]
+                    matched_skills.append({
+                        'skill': js.skill.name,
+                        'required_importance': js.importance,
+                        'is_required': js.is_required,
+                        'candidate_level': ps.level,
+                        'candidate_experience': ps.years_experience,
+                    })
+                    
+                    # Suggest improvement if below advanced level for important skills
+                    if js.importance >= 0.8 and ps.level in ['beginner', 'intermediate']:
+                        improvement_areas.append({
+                            'skill': js.skill.name,
+                            'current_level': ps.level,
+                            'suggested_level': 'advanced',
+                        })
+                else:
+                    missing_skills.append({
+                        'skill': js.skill.name,
+                        'importance': js.importance,
+                        'is_required': js.is_required,
+                    })
+            except Exception:
+                continue
+        
+        return {
+            'matched_skills': matched_skills,
+            'missing_skills': missing_skills,
+            'improvement_areas': improvement_areas,
+            'match_score': calculate_match_score(job, profile),
+        }
+    except Exception:
+        return {
+            'matched_skills': [],
+            'missing_skills': [],
+            'improvement_areas': [],
+            'match_score': 0.0,
+        }

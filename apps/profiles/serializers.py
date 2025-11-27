@@ -96,7 +96,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     def get_skills(self, obj):
         """Get skills with djongo-compatible query"""
         try:
-            profile_skills = list(ProfileSkill.objects.filter(profile_id=obj.id))
+            profile_skills = list(ProfileSkill.objects.filter(profile_id=obj.id).order_by())
             return ProfileSkillSerializer(profile_skills, many=True).data
         except Exception:
             return []
@@ -104,7 +104,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     def get_experiences(self, obj):
         """Get experiences with djongo-compatible query"""
         try:
-            experiences = list(Experience.objects.filter(profile_id=obj.id))
+            experiences = list(Experience.objects.filter(profile_id=obj.id).order_by())
             return ExperienceSerializer(experiences, many=True).data
         except Exception:
             return []
@@ -112,7 +112,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     def get_education(self, obj):
         """Get education with djongo-compatible query"""
         try:
-            education = list(Education.objects.filter(profile_id=obj.id))
+            education = list(Education.objects.filter(profile_id=obj.id).order_by())
             return EducationSerializer(education, many=True).data
         except Exception:
             return []
@@ -120,7 +120,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     def get_certifications(self, obj):
         """Get certifications with djongo-compatible query"""
         try:
-            certifications = list(Certification.objects.filter(profile_id=obj.id))
+            certifications = list(Certification.objects.filter(profile_id=obj.id).order_by())
             return CertificationSerializer(certifications, many=True).data
         except Exception:
             return []

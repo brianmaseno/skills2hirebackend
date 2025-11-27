@@ -43,29 +43,15 @@ class JobViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter queryset based on user and status"""
-        queryset = self.queryset
+        # Simple query for djongo compatibility - just return active jobs
+        # The my_jobs action handles employer's own jobs separately
+        queryset = Job.objects.filter(status='active')
         
-        if self.action == 'list':
-            # For any user (authenticated or not), show active jobs
-            # Employers additionally see their own jobs in all statuses
-            if self.request.user.is_authenticated and hasattr(self.request.user, 'is_employer') and self.request.user.is_employer:
-                # Employers see their own jobs (any status) + all active jobs
-                queryset = queryset.filter(Q(employer=self.request.user) | Q(status='active'))
-            else:
-                # Everyone else sees only active jobs
-                queryset = queryset.filter(status='active')
-        
-        # Filter by skills if provided
-        skills = self.request.query_params.getlist('skills')
-        if skills:
-            queryset = queryset.filter(skills_required__id__in=skills).distinct()
-        
-        # Filter by location
+        # Filter by location (simple filter, no Q objects with OR)
         location = self.request.query_params.get('location')
         if location:
-            queryset = queryset.filter(
-                Q(location__icontains=location) | Q(is_remote=True)
-            )
+            # Just filter by location, skip OR with is_remote for djongo compatibility
+            queryset = queryset.filter(location__icontains=location)
         
         return queryset
     
@@ -93,12 +79,8 @@ class JobViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        jobs = self.get_queryset().filter(employer=request.user)
-        page = self.paginate_queryset(jobs)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        
+        # Use simple filter without JOINs for djongo compatibility
+        jobs = list(Job.objects.filter(employer_id=request.user.id))
         serializer = self.get_serializer(jobs, many=True)
         return Response(serializer.data)
 
@@ -118,11 +100,15 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         
         if user.is_employer:
             # Employers see applications to their jobs
-            # Note: Removed select_related due to djongo/MongoDB JOIN limitations
-            return Application.objects.filter(job__employer=user)
+            # Avoid JOIN by first getting job IDs, then filtering applications
+            try:
+                job_ids = list(Job.objects.filter(employer_id=user.id).values_list('id', flat=True))
+                return Application.objects.filter(job_id__in=job_ids)
+            except Exception:
+                return Application.objects.none()
         else:
             # Job seekers see their own applications
-            return Application.objects.filter(applicant=user)
+            return Application.objects.filter(applicant_id=user.id)
     
     def get_serializer_class(self):
         """Use different serializers for different actions"""

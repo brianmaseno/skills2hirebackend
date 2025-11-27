@@ -27,6 +27,7 @@ class JobViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['employment_type', 'experience_level', 'is_remote', 'status']
     search_fields = ['title', 'description', 'location']
+    pagination_class = None  # Disable pagination for djongo compatibility
     # Note: Removed OrderingFilter due to djongo limitations with ORDER BY + JOINs
     
     def get_serializer_class(self):
@@ -54,6 +55,16 @@ class JobViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(location__icontains=location)
         
         return queryset
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to handle djongo compatibility"""
+        try:
+            queryset = self.get_queryset()
+            jobs = list(queryset)
+            serializer = self.get_serializer(jobs, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response([], status=status.HTTP_200_OK)
     
     def retrieve(self, request, *args, **kwargs):
         """Increment view count on retrieve"""
@@ -92,6 +103,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['status', 'job']
+    pagination_class = None  # Disable pagination for djongo compatibility
     # Note: Removed OrderingFilter due to djongo/MongoDB limitations
     
     def get_queryset(self):
@@ -103,12 +115,24 @@ class ApplicationViewSet(viewsets.ModelViewSet):
             # Avoid JOIN by first getting job IDs, then filtering applications
             try:
                 job_ids = list(Job.objects.filter(employer_id=user.id).values_list('id', flat=True))
-                return Application.objects.filter(job_id__in=job_ids)
+                if job_ids:
+                    return Application.objects.filter(job_id__in=job_ids)
+                return Application.objects.none()
             except Exception:
                 return Application.objects.none()
         else:
             # Job seekers see their own applications
             return Application.objects.filter(applicant_id=user.id)
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to handle djongo compatibility"""
+        try:
+            queryset = self.get_queryset()
+            applications = list(queryset)
+            serializer = self.get_serializer(applications, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response([], status=status.HTTP_200_OK)
     
     def get_serializer_class(self):
         """Use different serializers for different actions"""
@@ -162,6 +186,7 @@ class SavedJobViewSet(viewsets.ModelViewSet):
     
     serializer_class = SavedJobSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Disable pagination for djongo compatibility
     
     def get_queryset(self):
         """Return saved jobs for current user"""

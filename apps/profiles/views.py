@@ -28,6 +28,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['location', 'is_available']
     search_fields = ['display_name', 'bio', 'headline', 'company_name']
+    pagination_class = None  # Disable pagination for djongo compatibility
     # Note: Removed OrderingFilter due to djongo/MongoDB limitations
     
     def get_serializer_class(self):
@@ -75,6 +76,7 @@ class SkillViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['category']
     search_fields = ['name', 'description']
+    pagination_class = None  # Disable pagination for djongo compatibility
     # Note: Removed OrderingFilter due to djongo/MongoDB limitations
 
 
@@ -83,6 +85,7 @@ class ProfileSkillViewSet(viewsets.ModelViewSet):
     
     serializer_class = ProfileSkillSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Disable pagination for djongo compatibility
     
     def get_queryset(self):
         """Return profile skills for the current user's profile"""
@@ -99,6 +102,7 @@ class ExperienceViewSet(viewsets.ModelViewSet):
     
     serializer_class = ExperienceSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Disable pagination for djongo compatibility
     
     def get_queryset(self):
         """Return experiences for the current user's profile"""
@@ -114,6 +118,7 @@ class EducationViewSet(viewsets.ModelViewSet):
     
     serializer_class = EducationSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Disable pagination for djongo compatibility
     
     def get_queryset(self):
         """Return education for the current user's profile"""
@@ -129,6 +134,7 @@ class CertificationViewSet(viewsets.ModelViewSet):
     
     serializer_class = CertificationSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Disable pagination for djongo compatibility
     
     def get_queryset(self):
         """Return certifications for the current user's profile"""
